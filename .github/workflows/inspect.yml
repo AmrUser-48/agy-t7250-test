@@ -40,6 +40,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y qemu-user
 
-      - name: Test as old Core 2
+      - name: Test old CPU compatibility
         run: |
-          qemu-x86_64 -cpu core2 "$HOME/.local/bin/agy" --version
+          echo "===== QEMU CPU MODELS ====="
+          qemu-x86_64 -cpu help
+
+          echo "===== TEST ====="
+          qemu-x86_64 -cpu qemu64 "$HOME/.local/bin/agy" --version
