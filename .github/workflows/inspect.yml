@@ -16,34 +16,54 @@ jobs:
 
       - name: Inspect binary
         run: |
+          set -eux
+
           AGY="$HOME/.local/bin/agy"
 
           echo "===== FILE ====="
           file "$AGY"
 
+          echo "===== ARCH ====="
+          uname -m
+          file "$AGY"
+
           echo "===== GO BUILD INFO ====="
           go version -m "$AGY" || true
 
-          echo "===== CPU STRINGS ====="
+          echo "===== CPU-RELATED STRINGS ====="
           strings "$AGY" | grep -Ei \
-            'pclmul|aes|avx|sse4|cpu feature|cpu\.' | head -100 || true
+            'pclmul|aes|avx|avx2|sse4|sse4\.1|sse4\.2|cpu feature|cpu\.' \
+            | head -200 || true
 
           echo "===== PCLMUL INSTRUCTIONS ====="
-          objdump -d "$AGY" | grep -Ei 'pclmul' | head -30 || true
+          objdump -d "$AGY" 2>/dev/null |
+            grep -Ei 'pclmul' |
+            head -50 || true
 
           echo "===== AES INSTRUCTIONS ====="
-          objdump -d "$AGY" | grep -Ei \
-            'aesenc|aesenclast|aesdec|aesdeclast' | head -30 || true
+          objdump -d "$AGY" 2>/dev/null |
+            grep -Ei 'aesenc|aesenclast|aesdec|aesdeclast' |
+            head -50 || true
 
-      - name: Install QEMU
+          echo "===== AVX INSTRUCTIONS ====="
+          objdump -d "$AGY" 2>/dev/null |
+            grep -Ei \
+              'vmov|vadd|vsub|vmul|vpxor|vzeroupper|vextract|vinsert' |
+            head -50 || true
+
+      - name: Check required CPU features
         run: |
-          sudo apt-get update
-          sudo apt-get install -y qemu-user
-
-      - name: Test old CPU compatibility
-        run: |
-          echo "===== QEMU CPU MODELS ====="
-          qemu-x86_64 -cpu help
-
-          echo "===== TEST ====="
-          qemu-x86_64 -cpu qemu64 "$HOME/.local/bin/agy" --version
+          echo "===== T7250 CPU ====="
+          echo "Intel Core 2 Duo T7250"
+          echo
+          echo "Known relevant instruction support:"
+          echo "  SSE      YES"
+          echo "  SSE2     YES"
+          echo "  SSE3     YES"
+          echo "  SSSE3    YES"
+          echo "  SSE4.1   NO"
+          echo "  SSE4.2   NO"
+          echo "  AES-NI   NO"
+          echo "  AVX      NO"
+          echo "  AVX2     NO"
+          echo "  PCLMULQDQ NO"
