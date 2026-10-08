@@ -1,0 +1,45 @@
+name: Inspect AGY
+
+on:
+  workflow_dispatch:
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install AGY
+        run: |
+          set -eux
+          curl -fsSL https://antigravity.google/cli/install.sh | bash
+          ~/.local/bin/agy --version || true
+
+      - name: Inspect binary
+        run: |
+          AGY="$HOME/.local/bin/agy"
+
+          echo "===== FILE ====="
+          file "$AGY"
+
+          echo "===== GO BUILD INFO ====="
+          go version -m "$AGY" || true
+
+          echo "===== CPU STRINGS ====="
+          strings "$AGY" | grep -Ei \
+            'pclmul|aes|avx|sse4|cpu feature|cpu\.' | head -100 || true
+
+          echo "===== PCLMUL INSTRUCTIONS ====="
+          objdump -d "$AGY" | grep -Ei 'pclmul' | head -30 || true
+
+          echo "===== AES INSTRUCTIONS ====="
+          objdump -d "$AGY" | grep -Ei \
+            'aesenc|aesenclast|aesdec|aesdeclast' | head -30 || true
+
+      - name: Install QEMU
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qemu-user
+
+      - name: Test as old Core 2
+        run: |
+          qemu-x86_64 -cpu core2 "$HOME/.local/bin/agy" --version
